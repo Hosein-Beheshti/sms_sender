@@ -58,11 +58,18 @@ class DatabaseController extends Controller
 		$sql = "CREATE TABLE tbl_sms (
 			id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY, 
 			mobile BIGINT(20) UNSIGNED	 NOT NULL,
-			message VARCHAR(1000)  NOT NULL,
+			message VARCHAR(400)  NOT NULL,
 			serverstatus INT(1) NOT NULL
 			)";
+
 		if ($conn->query($sql) === TRUE) {
 		   //  echo "Table created successfully";
+		} else {
+		  //  echo "Error creating table: " . $conn->error;
+		}
+		$sql = "CREATE INDEX idx_mobile_message_status ON tbl_sms(mobile,message,serverstatus)";
+		if ($conn->query($sql) === TRUE) {
+		  // echo "index created successfully";
 		} else {
 		  //  echo "Error creating table: " . $conn->error;
 		}
@@ -121,7 +128,7 @@ class DatabaseController extends Controller
 	$conn = $this->connect("localhost" , "root" , "" , "db_sms");
 
 	//select from database
-	$sql = "SELECT * FROM tbl_sms";
+	$sql = "SELECT *FROM tbl_sms ";
     if ($result = $conn->query($sql)){
     	$last_id = mysqli_num_rows($result);
     }
@@ -135,23 +142,21 @@ class DatabaseController extends Controller
     $servertwofaults = 0;
 
     //select datas from database
-    $sql = "SELECT * FROM tbl_sms ";
+    $sql = "SELECT serverstatus FROM tbl_sms where serverstatus = 1 ";
     if ($result = $conn->query($sql)){
-    	while ($row = $result->fetch_assoc()) {
-    		if ($row['serverstatus'] == 1 )
-    			$serverone++;
-    		else if($row['serverstatus'] == 2){
-    			$servertwo++;
-    			$serveronefaults++;
-    		}
-    		else if($row['serverstatus'] == 0){
-    			$servertwofaults++;
-    			$serveronefaults++;
-    		}
-    	}
+    	$serverone = mysqli_num_rows($result);
     }
+    $sql = "SELECT serverstatus FROM tbl_sms where serverstatus = 2 ";
+    if ($result = $conn->query($sql)){
+    	$servertwo = mysqli_num_rows($result);
+    	$serveronefaults = mysqli_num_rows($result);
+    }
+    $servertwofaults += $last_id - ($serverone + $servertwo);
+   	$serveronefaults += $last_id - ($serverone + $servertwo);
+
     //calculate percentage
     $serveronefaults = 100 * $serveronefaults/($serverone + $serveronefaults);
+    if($servertwofaults > 0)
     $servertwofaults = 100 * $servertwofaults/($servertwofaults + $servertwo);
 
     //select data from database and use of GROUP BY to get 10 most used phone numbers
